@@ -3,201 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>15-Day Weather Pro</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
+    <title>Skyline Weather Pro</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        body { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; }
+        body { -webkit-tap-highlight-color: transparent; user-select: none; transition: background-color 1s; }
         input { user-select: text; }
+        /* Map height and border */
+        #map { height: 400px; width: 100%; border-radius: 2rem; z-index: 10; border: 2px solid #1e293b; background: #000; }
+        .user-location-dot { width: 16px; height: 16px; background-color: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px rgba(59, 130, 246, 1); }
     </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen p-4 md:p-8 font-sans">
+<body class="bg-slate-900 text-white min-h-screen p-4 md:p-8 font-sans transition-colors duration-1000">
     <div class="max-w-5xl mx-auto">
         
-        <div class="relative mb-8">
-            <div class="flex flex-col md:flex-row gap-4 items-center">
-                <div class="relative flex-1 w-full">
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-4 flex items-center text-slate-400 pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </span>
-                        <input id="cityInput" type="text" oninput="debounceSearch(this.value)" placeholder="Search for a city..." 
-                               class="w-full p-4 pl-12 pr-12 rounded-xl bg-slate-800 border border-slate-700 focus:outline-none focus:border-blue-500 text-lg transition shadow-lg">
-                        
-                        <button onclick="getLocation()" class="absolute inset-y-0 right-4 flex items-center text-blue-400 hover:text-blue-300 transition" title="Use My Location">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </button>
-                    </div>
-                    <div id="suggestionBox" class="hidden absolute w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden"></div>
-                </div>
-                
-                <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 shadow-lg">
-                    <button onclick="setUnits('metric')" id="btnMetric" class="px-5 py-3 rounded-lg bg-blue-600 font-bold transition-all">°C</button>
-                    <button onclick="setUnits('us')" id="btnImperial" class="px-5 py-3 rounded-lg hover:bg-slate-700 font-bold transition-all">°F</button>
-                </div>
+        <div class="flex flex-col md:flex-row gap-4 items-center mb-8">
+            <div class="relative flex-1 w-full">
+                <input id="cityInput" type="text" oninput="debounceSearch(this.value)" placeholder="Search city..." 
+                       class="w-full p-4 pl-12 pr-12 rounded-xl bg-slate-800 border border-slate-700 focus:outline-none focus:border-blue-500 text-lg shadow-lg">
+                <button onclick="getLocation()" class="absolute inset-y-0 right-4 flex items-center text-blue-400 hover:text-blue-300 transition" title="Use My Location">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+                <div id="suggestionBox" class="hidden absolute w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden"></div>
+            </div>
+
+            <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 shadow-lg shrink-0">
+                <button onclick="setUnits('metric')" id="btnMetric" class="px-5 py-3 rounded-lg bg-blue-600 font-bold transition-all">°C</button>
+                <button onclick="setUnits('us')" id="btnImperial" class="px-5 py-3 rounded-lg hover:bg-slate-700 font-bold transition-all">°F</button>
             </div>
         </div>
 
-        <div id="currentWeather" class="bg-gradient-to-br from-blue-600 to-indigo-800 p-8 md:p-12 rounded-[2rem] mb-6 hidden shadow-2xl relative overflow-hidden">
-            <div class="relative z-10">
-                <h1 id="cityName" class="text-4xl md:text-6xl font-black mb-1 tracking-tighter uppercase">CITY</h1>
-                <p id="fullLocation" class="text-xl opacity-70 mb-4 font-bold italic">Location Detail</p>
-                <div class="flex flex-col md:flex-row items-start md:items-center gap-8">
-                    <span id="currentTemp" class="text-8xl md:text-9xl font-black tracking-tighter flex items-center gap-4">--°</span>
-                    <div class="space-y-1">
-                        <div id="currentDesc" class="text-2xl md:text-3xl font-bold capitalize">Condition</div>
-                        <div id="feelsLike" class="text-lg opacity-80 font-bold">Feels like --°</div>
-                    </div>
-                </div>
-            </div>
+        <div id="radarSection" class="hidden mb-10">
+            <h2 class="text-2xl font-black mb-4 text-slate-300 px-2 flex items-center gap-2">
+                <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span></span>
+                Weather Live (Radar)
+            </h2>
+            <div id="map" class="shadow-2xl"></div>
+        </div>
+
+        <div id="currentWeather" class="p-8 md:p-12 rounded-[2rem] mb-6 hidden shadow-2xl relative overflow-hidden transition-all duration-1000">
+            <h1 id="cityName" class="text-4xl md:text-6xl font-black mb-1 uppercase relative z-10">CITY</h1>
+            <div id="currentTemp" class="text-8xl md:text-9xl font-black flex items-center gap-4 relative z-10">--°</div>
+            <div id="currentDesc" class="text-2xl font-bold capitalize relative z-10">Condition</div>
             <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
-        </div>
-
-        <div id="hourlySection" class="hidden mb-10">
-            <h2 class="text-2xl font-black mb-4 text-slate-300 px-2">Next 24 Hours</h2>
-            <div id="hourlyContainer" class="flex gap-4 overflow-x-auto pb-4 px-2 no-scrollbar"></div>
         </div>
 
         <div id="forecastHeading" class="hidden">
             <h2 class="text-2xl font-black mb-6 text-slate-300 px-2">15-Day Outlook</h2>
             <div id="forecastContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4"></div>
         </div>
+
+        <div class="mt-12 text-center text-slate-500 text-sm italic">
+            © 2026 onechippaviation • Licensed under MIT
+        </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const WEATHER_KEY = "79WFLMMRY2TJZDFVLC3PHGRNW";
         let currentUnits = "metric";
-        let lastLocation = ""; // Remembers the last place searched
-        let timer;
+        let lastLocation = "";
+        let map, radarLayer, marker;
 
-        const emojiMap = {
-            "snow": "❄️", "rain": "🌧️", "fog": "🌫️", "wind": "💨",
-            "cloudy": "☁️", "partly-cloudy-day": "⛅", "partly-cloudy-night": "🌙",
-            "clear-day": "☀️", "clear-night": "🌙", "thunder-rain": "⛈️",
-            "thunder-showers-day": "⛈️", "thunder-showers-night": "⛈️",
-            "showers-day": "🌦️", "showers-night": "🌧️", "sleet": "🌨️", "hail": "🧊"
-        };
-
-        function debounceSearch(val) {
-            clearTimeout(timer);
-            timer = setTimeout(() => fetchCitySuggestions(val), 500);
-        }
-
-        async function fetchCitySuggestions(query) {
-            const box = document.getElementById('suggestionBox');
-            if (query.length < 3) { box.classList.add('hidden'); return; }
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5`);
-                const data = await res.json();
-                if (data && data.length > 0) {
-                    box.classList.remove('hidden');
-                    box.innerHTML = data.map(item => {
-                        const city = item.address.city || item.address.town || item.address.village || item.display_name.split(',')[0];
-                        const state = item.address.state || "";
-                        const country = item.address.country || "";
-                        const fullAddress = `${city}, ${state}, ${country}`.replace(/,,/g, ',');
-                        return `<div onclick="selectCity('${fullAddress}')" class="p-4 hover:bg-slate-700 cursor-pointer border-b border-slate-700 transition">
-                            <div class="font-bold text-lg text-white">${city}</div>
-                            <div class="text-sm text-slate-400">${state}${state ? ', ' : ''}${country}</div>
-                        </div>`;
-                    }).join('');
-                } else { box.classList.add('hidden'); }
-            } catch (e) { console.error(e); }
-        }
-
-        function getLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(position => {
-                    const coords = `${position.coords.latitude},${position.coords.longitude}`;
-                    lastLocation = coords;
-                    getWeather(coords);
-                }, () => alert("Location access denied."));
-            }
-        }
-
-        function selectCity(address) {
-            document.getElementById('cityInput').value = address;
-            document.getElementById('suggestionBox').classList.add('hidden');
-            lastLocation = address;
-            getWeather(address);
+        function updateBackground(condition) {
+            const body = document.body;
+            const weatherCard = document.getElementById('currentWeather');
+            let bg = "bg-slate-900", card = "bg-gradient-to-br from-blue-600 to-indigo-800";
+            if (condition.includes("Rain")) { bg = "bg-slate-950"; card = "bg-gradient-to-br from-slate-700 to-blue-900"; }
+            else if (condition.includes("Clear")) { bg = "bg-sky-900"; card = "bg-gradient-to-br from-orange-400 to-blue-600"; }
+            else if (condition.includes("Cloud")) { bg = "bg-slate-800"; card = "bg-gradient-to-br from-slate-500 to-slate-700"; }
+            body.className = `${bg} text-white min-h-screen p-4 md:p-8 font-sans transition-colors duration-1000`;
+            weatherCard.className = `${card} p-8 md:p-12 rounded-[2rem] mb-6 shadow-2xl relative overflow-hidden transition-all duration-1000`;
         }
 
         function setUnits(unit) {
             currentUnits = unit;
             document.getElementById('btnMetric').classList.toggle('bg-blue-600', unit === 'metric');
+            document.getElementById('btnMetric').classList.toggle('hover:bg-slate-700', unit !== 'metric');
             document.getElementById('btnImperial').classList.toggle('bg-blue-600', unit === 'us');
-            
-            // Re-fetch data for the same location with new units
-            if (lastLocation) {
-                getWeather(lastLocation);
+            document.getElementById('btnImperial').classList.toggle('hover:bg-slate-700', unit !== 'us');
+            if (lastLocation) getWeather(lastLocation);
+        }
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                const options = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
+                navigator.geolocation.getCurrentPosition(p => {
+                    const lat = p.coords.latitude;
+                    const lon = p.coords.longitude;
+                    lastLocation = `${lat},${lon}`;
+                    initMap(lat, lon);
+                    getWeather(lastLocation);
+                }, () => alert("Location denied."), options);
             }
         }
 
-        async function getWeather(location) {
-            // Uses the currentUnits variable directly in the URL
-            const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(location)}?unitGroup=${currentUnits}&key=${WEATHER_KEY}&contentType=json`;
-
+        async function addRadarLayer() {
             try {
-                const res = await fetch(url);
-                const data = await res.json();
-                
-                document.getElementById('currentWeather').classList.remove('hidden');
-                document.getElementById('hourlySection').classList.remove('hidden');
-                document.getElementById('forecastHeading').classList.remove('hidden');
+                const response = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+                const data = await response.json();
+                const latestTime = data.radar.past[data.radar.past.length - 1].path;
+                if (radarLayer) map.removeLayer(radarLayer);
+                radarLayer = L.tileLayer(`https://tilecache.rainviewer.com${latestTime}/256/{z}/{x}/{y}/2/1_1.png`, {
+                    opacity: 0.8, zIndex: 100
+                }).addTo(map);
+            } catch (e) { console.error("Radar failed:", e); }
+        }
 
-                const parts = data.resolvedAddress.split(',');
-                const curIcon = emojiMap[data.currentConditions.icon] || "🌡️";
-                document.getElementById('cityName').innerText = parts[0];
-                document.getElementById('fullLocation').innerText = parts.slice(1).join(',').trim();
-                document.getElementById('currentTemp').innerHTML = `<span class="text-6xl md:text-8xl">${curIcon}</span> ${Math.round(data.currentConditions.temp)}°`;
-                document.getElementById('currentDesc').innerText = data.currentConditions.conditions;
-                document.getElementById('feelsLike').innerText = `Feels like ${Math.round(data.currentConditions.feelslike)}°`;
+        function initMap(lat, lon) {
+            document.getElementById('radarSection').classList.remove('hidden');
+            if (!map) {
+                // FIXED: Max zoom set to 10 to prevent "Not Supported" error
+                map = L.map('map', { maxZoom: 10 }).setView([lat, lon], 10);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+            } else { 
+                map.setView([lat, lon], 10); 
+            }
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lon], { icon: L.divIcon({ className: 'user-location-dot' }) }).addTo(map);
+            addRadarLayer();
+        }
 
-                const hourlyContainer = document.getElementById('hourlyContainer');
-                hourlyContainer.innerHTML = '';
-                let allHours = [...data.days[0].hours, ...data.days[1].hours];
-                const currentHour = new Date().getHours();
-                
-                allHours.slice(currentHour, currentHour + 24).forEach(hour => {
-                    const hourTime = new Date(`2000-01-01T${hour.datetime}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                    const hIcon = emojiMap[hour.icon] || "🌡️";
-                    hourlyContainer.innerHTML += `
-                        <div class="flex-shrink-0 bg-slate-800 border border-slate-700 p-4 rounded-2xl text-center min-w-[100px] hover:border-blue-500 transition">
-                            <p class="text-[10px] font-bold text-slate-400 mb-1 uppercase">${hourTime}</p>
-                            <div class="text-2xl mb-1">${hIcon}</div>
-                            <p class="text-xl font-black">${Math.round(hour.temp)}°</p>
-                        </div>
-                    `;
-                });
+        async function fetchCitySuggestions(q) {
+            if (q.length < 3) return;
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=5`);
+            const data = await res.json();
+            const box = document.getElementById('suggestionBox');
+            box.classList.remove('hidden');
+            box.innerHTML = data.map(i => `<div onclick="selectCity('${i.display_name}', ${i.lat}, ${i.lon})" class="p-4 hover:bg-slate-700 cursor-pointer border-b border-slate-700 transition">${i.display_name}</div>`).join('');
+        }
 
-                const container = document.getElementById('forecastContainer');
-                container.innerHTML = data.days.map(day => {
-                    const dIcon = emojiMap[day.icon] || "🌡️";
-                    return `
-                        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 text-center hover:border-blue-500 transition shadow-lg">
-                            <p class="text-sm font-bold text-slate-400 uppercase">${new Date(day.datetime).toLocaleDateString('en-US', {weekday:'short', day:'numeric'})}</p>
-                            <div class="text-4xl my-3">${dIcon}</div>
-                            <p class="text-3xl font-black mb-1">${Math.round(day.tempmax)}°</p>
-                            <p class="text-sm font-bold text-blue-400">${Math.round(day.tempmin)}°</p>
-                        </div>
-                    `;
-                }).join('');
-            } catch (e) { console.error(e); }
+        function selectCity(addr, lat, lon) {
+            document.getElementById('cityInput').value = addr.split(',')[0];
+            document.getElementById('suggestionBox').classList.add('hidden');
+            lastLocation = addr;
+            initMap(lat, lon);
+            getWeather(addr);
+        }
+
+        function debounceSearch(v) { clearTimeout(window.t); window.t = setTimeout(() => fetchCitySuggestions(v), 500); }
+
+        async function getWeather(loc) {
+            const res = await fetch(`https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(loc)}?unitGroup=${currentUnits}&key=${WEATHER_KEY}&contentType=json`);
+            const data = await res.json();
+            document.getElementById('currentWeather').classList.remove('hidden');
+            document.getElementById('forecastHeading').classList.remove('hidden');
+            
+            // Fix coordinates in city name
+            let displayCity = data.resolvedAddress.split(',')[0];
+            if (!isNaN(displayCity.charAt(0))) displayCity = "Local Area";
+
+            document.getElementById('cityName').innerText = displayCity;
+            document.getElementById('currentTemp').innerText = Math.round(data.currentConditions.temp) + "°";
+            document.getElementById('currentDesc').innerText = data.currentConditions.conditions;
+            updateBackground(data.currentConditions.conditions);
+
+            const container = document.getElementById('forecastContainer');
+            container.innerHTML = data.days.slice(0, 15).map(d => `
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 text-center">
+                    <p class="text-sm font-bold text-slate-400 uppercase">${new Date(d.datetime).toLocaleDateString('en-US', {weekday:'short'})}</p>
+                    <p class="text-3xl font-black">${Math.round(d.tempmax)}°</p>
+                </div>`).join('');
         }
     </script>
 </body>
